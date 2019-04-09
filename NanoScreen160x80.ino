@@ -6,6 +6,9 @@
 #define TFT_CS     10
 #define TFT_RST    9 
 #define TFT_DC     4
+#define BACKGREEN 0x37E5
+#define ARROWBLUE 0x00FC
+#define BACKORANGE 0xFD03
 
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 
@@ -26,12 +29,6 @@ void loop() {
   if (Serial.available() > 0) {
     incomingByte = Serial.read();
     switch ((char)incomingByte) {
-      
-      //if input is c
-      case 'c':
-        //print hatch panel is attached animation
-        drawCompressorStuck();
-        break;
 
       //if input is u
       case 'u':
@@ -44,18 +41,23 @@ void loop() {
         //print elevator is at the bottom animation
         drawElevatorBottom();
         break;
-
+/*
       //if input is b
       case 'b':
         //print ball is secured animation
         drawBall();
         break;
-
+*/
       //if input is a
       case 'a':
         //print arm is full tilt animation
         drawTilt();
         break;
+
+      case 's':
+        drawScissor();
+        break;
+        
 
       //if input is n
       case 'n':
@@ -66,7 +68,7 @@ void loop() {
   }
 }
 
-
+/*
 //Used when the compressor is fully stuck to the hatch
 void drawCompressorStuck(){
   //fill screen with white, print a green circle, and print a white circle
@@ -78,20 +80,17 @@ void drawCompressorStuck(){
                  10,
                  ST77XX_WHITE);     
 }
-
+*/
 
 
 //Used when the elevator is at the top
 void drawElevatorTop(){
   //print screen with white, print red triangle, print red rectangle
-  tft.fillScreen(ST77XX_WHITE);
-  tft.fillTriangle(80,0,
-                   50,30,
-                   110,30,
-                   ST77XX_RED);
-  tft.fillRect(60,30,
-               40,80,
-               ST77XX_RED);                 
+  tft.fillScreen(BACKGREEN);
+  tft.fillTriangle(0,80,
+                   160,80,
+                   80,0,
+                   ARROWBLUE);                
 }
 
 
@@ -99,19 +98,15 @@ void drawElevatorTop(){
 //used when elevator is at the bottom
 void drawElevatorBottom(){
   //fill screen with white, print red triangle, and red rectangle
-  tft.fillScreen(ST77XX_WHITE);
-  tft.fillTriangle(80,80,
-                   50,40,
-                   110,40,
-                   ST77XX_RED);
-  tft.fillRect(60,0,
-               40,40,
-               ST77XX_RED);
-                   
+  tft.fillScreen(BACKORANGE);
+  tft.fillTriangle(0,0,
+                   160,0,
+                   80,80,
+                   ST77XX_BLUE);
 }
 
 
-
+/*
 //used when the robot has a ball
 void drawBall(){
   //fill screen with white, print orange circle
@@ -120,7 +115,7 @@ void drawBall(){
                  40,
                  ST77XX_ORANGE);
 }
-
+*/
 
 
 //used when the arm is fully tilted up
@@ -153,4 +148,16 @@ void drawNone(){
   tft.fillScreen(ST77XX_BLACK);
   
 }
-  
+
+void drawScissor(){
+  tft.fillScreen(ST77XX_WHITE);
+  tft.fillTriangle(60,20,
+                   100,20,
+                   80,40,
+                   ST77XX_BLUE);
+  tft.fillTriangle(60,60,
+                   100,60,
+                   80,40,
+                   ST77XX_BLUE);
+                   
+}
