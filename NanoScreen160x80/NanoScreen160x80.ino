@@ -1,175 +1,122 @@
 //including various libraries needed to run
-#include <Adafruit_GFX.h>    // Core graphics library
-#include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
+#include <Adafruit_GFX.h>         // Core graphics library
+#include <Adafruit_ST7735.h>      // Hardware-specific library for ST7735
+#include <SdFat.h>                // SD card & FAT filesystem library
+#include <Adafruit_SPIFlash.h>    // SPI / QSPI flash library
+#include <Adafruit_ImageReader.h> // Image-reading functions
 #include <SPI.h>
 
+#define SD_CS      5
 #define TFT_CS     10
-#define TFT_RST    9 
 #define TFT_DC     4
-#define BACKGREEN 0x37E5
-#define ARROWBLUE 0x00FC
-#define BACKORANGE 0xFD03
+#define TFT_RST    9 
 
-Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
+Adafruit_ST7735      tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
+SdFat                SD;         // SD card filesystem
+Adafruit_ImageReader reader(SD); // Image-reader object, pass in SD filesys
 
 //setup the LCD
-void setup() {
-    tft.initR(INITR_MINI160x80);   // initialize a ST7735S chip, mini display
+void setup()
+{
+    tft.initR(INITR_MINI160x80); // Initialize a ST7735S chip, mini display
 
-    tft.setRotation(3);
+    tft.fillScreen(ST77XX_BLUE); // Starting color of the screen is blue
 
-    tft.fillScreen(ST77XX_BLUE); //Starting color of the screen is blue
+    initializeSDCard();
 
     Serial.begin(9600);
 }
 
-
-void loop() {
+void loop()
+{
   int incomingByte = 0;
-  if (Serial.available() > 0) {
+  if (Serial.available() > 0)
+  {
     incomingByte = Serial.read();
-    switch ((char)incomingByte) {
-
+    switch (incomingByte)
+    {
       // Used as part of auto recognition
-      case (char)0xAA:
+      case 0xAA:
         Serial.write(0x55);
         Serial.flush();
         break;
 
       // Used as part of auto recognition
-      case (char)0xC3:
+      case 0xC3:
         Serial.write(0x3C);
         Serial.flush();
         break;
 
-      //if input is u
-      case 'u':
-        //print elevator is at the top animation
-        drawElevatorTop();
+       // '0', Clear the screen
+       case 48:
+        tft.fillScreen(ST77XX_BLACK);
         break;
 
-      //if input is d
-      case 'd':
-        //print elevator is at the bottom animation
-        drawElevatorBottom();
-        break;
-/*
-      //if input is b
-      case 'b':
-        //print ball is secured animation
-        drawBall();
-        break;
-*/
-      //if input is a
-      case 'a':
-        //print arm is full tilt animation
-        drawTilt();
-        break;
-
-      case 's':
-        drawScissor();
-        break;
-        
-
-      //if input is n
-      case 'n':
-        //print nothing is happening animation
-        drawNone();
+      // For anything else, use the value as a character to create a file name
+      default:
+        char buf[6];
+        sprintf(buf, "%c.bmp", incomingByte);
+        bmpDraw(buf);
         break;
     }
   }
 }
 
-/*
-//Used when the compressor is fully stuck to the hatch
-void drawCompressorStuck(){
-  //fill screen with white, print a green circle, and print a white circle
-  tft.fillScreen(ST77XX_WHITE);
-  tft.fillCircle(80, 40,
-                 42,
-                 ST77XX_GREEN);
-  tft.fillCircle(80, 40,
-                 10,
-                 ST77XX_WHITE);     
-}
-*/
-
-
-//Used when the elevator is at the top
-void drawElevatorTop(){
-  //print screen with white, print red triangle, print red rectangle
-  tft.fillScreen(BACKGREEN);
-  tft.fillTriangle(0,80,
-                   160,80,
-                   80,0,
-                   ARROWBLUE);                
+void initializeSDCard()
+{
+  // The Adafruit_ImageReader constructor call (above, before setup())
+  // accepts an uninitialized SdFat or FatFileSystem object. This MUST
+  // BE INITIALIZED before using any of the image reader functions!
+  if (!SD.begin(SD_CS, SD_SCK_MHZ(10))) // Breakouts require 10 MHz limit due to longer wires
+  {
+    displayErrorMessage("SD Card missing",
+                        ST77XX_WHITE,
+                        ST77XX_RED);
+  }
 }
 
+void bmpDraw(char *file_name)
+{
+  ImageReturnCode imageReturnCode = reader.drawBMP(file_name, tft, 0, 0);
+  if (imageReturnCode != IMAGE_SUCCESS)
+  {
+    switch (imageReturnCode)
+    {
+      case IMAGE_ERR_FILE_NOT_FOUND: // Could not open file
+        char file_not_found_buf[26];
+        sprintf(file_not_found_buf, "File not\r\nfound\r\n(%s)", file_name);
+        displayErrorMessage(file_not_found_buf,
+                            ST77XX_WHITE,
+                            ST77XX_MAGENTA);
+        break;
 
+      case IMAGE_ERR_FORMAT:         // Not a supported image format
+        char format_err_buf[23];
+        sprintf(format_err_buf, "Format\r\nError\r\n(%s)", file_name);
+        displayErrorMessage(format_err_buf,
+                            ST77XX_BLUE,
+                            ST77XX_ORANGE);
+        break;
 
-//used when elevator is at the bottom
-void drawElevatorBottom(){
-  //fill screen with white, print red triangle, and red rectangle
-  tft.fillScreen(BACKORANGE);
-  tft.fillTriangle(0,0,
-                   160,0,
-                   80,80,
-                   ST77XX_BLUE);
+      case IMAGE_ERR_MALLOC:         // Could not allocate image
+        displayErrorMessage("Malloc Error",
+                            ST77XX_BLUE,
+                            ST77XX_YELLOW);
+        break;
+    }
+    tft.setRotation(0);
+  }  
 }
 
-
-/*
-//used when the robot has a ball
-void drawBall(){
-  //fill screen with white, print orange circle
-  tft.fillScreen(ST77XX_WHITE);
-  tft.fillCircle(80,40,
-                 40,
-                 ST77XX_ORANGE);
-}
-*/
-
-
-//used when the arm is fully tilted up
-void drawTilt(){
-  //fill the screen with red and make an X using 4 white triangles
-  tft.fillScreen(ST77XX_RED);
-  tft.fillTriangle(0,60,
-                   0,20,
-                   60,40,
-                   ST77XX_WHITE);
-  tft.fillTriangle(160,60,
-                   160,20,
-                   100,40,
-                   ST77XX_WHITE);
-  tft.fillTriangle(20,0,
-                   140,0,
-                   80,20,
-                   ST77XX_WHITE);
-   tft.fillTriangle(20,80,
-                   140,80,
-                   80,60,
-                   ST77XX_WHITE);
-}
-
-
-
-//used to restart the screen to black
-void drawNone(){
-  //fill screen into black
-  tft.fillScreen(ST77XX_BLACK);
-  
-}
-
-void drawScissor(){
-  tft.fillScreen(ST77XX_WHITE);
-  tft.fillTriangle(60,20,
-                   100,20,
-                   80,40,
-                   ST77XX_BLUE);
-  tft.fillTriangle(60,60,
-                   100,60,
-                   80,40,
-                   ST77XX_BLUE);
-                   
+void displayErrorMessage(char *message,
+                         uint16_t textColor,
+                         uint16_t screenColor)
+{
+    tft.setRotation(3);
+    tft.setCursor(1, 1);
+    tft.setTextSize(3);
+    tft.fillScreen(screenColor);
+    tft.setTextColor(textColor);
+    tft.print(message);
+    tft.setRotation(0);    
 }
